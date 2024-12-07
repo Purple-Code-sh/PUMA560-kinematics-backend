@@ -55,6 +55,15 @@ def T1(ang_1, ang_2, a_2, d_2, ang_3, a_3):
 def T2(ang_4, d_4, ang_5, ang_6, d_6):
     return A_34(ang_4, d_4) * A_45(ang_5) * A_56(ang_6, d_6)
 
+def round_matrix(matrix, decimals=2):
+    def round_and_check(value):
+        rounded_value = round(value, decimals)
+        if abs(rounded_value - int(rounded_value)) < 10**-decimals:
+            return int(rounded_value)
+        return rounded_value
+    
+    return matrix.applyfunc(round_and_check)
+
 # Valores de prueba
 G1 = 90
 G2 = 0
@@ -71,4 +80,8 @@ D6 = 56.25
 Mat_T1 = T1(G1, G2, A2, D2, G3, A3)
 Mat_T2 = T2(G4, D4, G5, G6, D6)
 Mat_T = Mat_T1 * Mat_T2
-print(Mat_T)
+
+# Redondear la matriz final
+Mat_T_rounded = round_matrix(Mat_T)
+
+print(Mat_T_rounded)
