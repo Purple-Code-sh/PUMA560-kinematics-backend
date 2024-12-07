@@ -1,6 +1,7 @@
 import roboticstoolbox as rtb
 import numpy as np
 
+
 # robot = rtb.models.Panda()
 # print(robot)
 
@@ -22,3 +23,7 @@ import numpy as np
 # A = np.array([[1, 2],[3, 4]])
 # B = np.array([[5, 0],[-8, 3]])
 # print(A + B)
+
+import roboticstoolbox as rtb
+robot = rtb.models.Puma560()
+print(robot)

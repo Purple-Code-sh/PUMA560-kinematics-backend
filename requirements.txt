@@ -14,6 +14,7 @@ identify==2.6.3
 idna==3.10
 kiwisolver==1.4.7
 matplotlib==3.5.1
+mpmath==1.3.0
 nodeenv==1.9.1
 numpy==1.26.4
 packaging==24.2
@@ -36,6 +37,7 @@ spatialgeometry==1.1.0
 spatialmath-python==1.1.13
 starlette==0.41.3
 swift-sim==1.1.0
+sympy==1.13.3
 typing_extensions==4.12.2
 uvicorn==0.32.1
 virtualenv==20.28.0
