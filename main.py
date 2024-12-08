@@ -1,114 +1,80 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-
-from sympy.matrices import Matrix
 import math
-from math import atan2, sqrt, cos, sin, radians, degrees
+import json
+from fastapi import FastAPI, WebSocket
+import roboticstoolbox as rtb
+from spatialmath import SE3 
 
-# Crear la aplicación FastAPI
 app = FastAPI()
 
-# Configuración de CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Cambiar "*" por el origen del frontend en producción, como "http://localhost:3000"
-    allow_credentials=True,
-    allow_methods=["*"],  # Permitir todos los métodos: GET, POST, OPTIONS, etc.
-    allow_headers=["*"],  # Permitir todos los headers
-)
+# Cargar el modelo PUMA 560 predefinido en roboticstoolbox
+puma = rtb.models.DH.Puma560()
 
-# Modelo de datos para la solicitud
-class IKRequest(BaseModel):
-    X: float
-    Y: float
-    Z: float
-    roll: float = 0  # Opcional
-    pitch: float = 0  # Opcional
-    yaw: float = 0  # Opcional
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    # Esperar mensaje JSON con X, Y, Z
+    # Ejemplo de mensaje a enviar desde el frontend:
+    # {"X":0.0203, "Y":-0.1501, "Z":0.6718, "config":"lun"}
+    #
+    # config es opcional, puedes pasarlo o no. Si no llega, usaremos 'lun'.
 
-# Función para calcular la cinemática inversa
-def inverse_kinematics(X, Y, Z, roll=0, pitch=0, yaw=0, a2=431.80, d2=149.09, a3=431.80, d4=149.09, d6=56.25):
-    T_target = Matrix([
-        [1, 0, 0, X],
-        [0, 1, 0, Y],
-        [0, 0, 1, Z],
-        [0, 0, 0, 1]
-    ])
+    while True:
+        data = await websocket.receive_text()
+        req = json.loads(data)
 
-    theta1_1 = atan2(Y, X)
-    theta1_2 = atan2(-Y, -X)
+        # Obtener X, Y, Z y config del mensaje
+        X = req.get("X", 0.0203)
+        Y = req.get("Y", -0.1501)
+        Z = req.get("Z", 0.6718)
+        config = req.get("config", "lun")
 
-    r = sqrt(X**2 + Y**2) - a2
-    s = Z - d2
+        # Crear la matriz T a partir de las coordenadas XYZ para el efector
+        # Suponemos aquí que la orientación es la misma que la pose en q=[0,-90°,90°,0,0,0].
+        # En un caso real, deberías obtener T completa con orientación (R, p).
+        # Para esta demo, crearemos una T con la orientación de la configuración inicial.
+        # Usaremos la fkine inversa para una pose conocida o simplemente usaremos T desde el ejemplo.
+        
+        # Si no tienes orientación, asume R = identidad (esto no siempre es correcto):
+        # PUMA 560 necesita las 6 DOF. Si solo das XYZ, la inversa analítica puede no ser única.
+        # Para este ejemplo, asumamos que la pose coincide con la orientación de q=[0, -90°, 90°, 0, 0, 0]
+        # la cual ya conocemos.
+        
+        # Configuración base para tener una orientación conocida
+        q_test = [0, -math.pi/2, math.pi/2, 0, 0, 0]
+        T_base = puma.fkine(q_test)
 
-    # Recalcular D con los nuevos parámetros
-    try:
-        D = (r**2 + s**2 - a3**2 - d4**2) / (2 * a3 * d4)
-    except ZeroDivisionError:
-        return {"error": "Parámetros inválidos: División por cero en el cálculo de D."}
+        # Reemplazamos la parte de traslación con (X,Y,Z)
+        # Esto es solo una demostración. En un caso real debes tener la orientación también.
+        T = T_base.A
+        T[0,3] = X
+        T[1,3] = Y
+        T[2,3] = Z
 
-    print(f"Depuración: r = {r}, s = {s}, D = {D}")  # Depuración adicional
+        # Convertimos de nuevo a SpatialMath SE3
+        T_final = SE3(T)
 
-    if abs(D) > 1:
-        return {"error": f"Posición fuera del alcance del robot. r: {r}, s: {s}, D: {D}"}
+        # Resolver inversa analítica
+        try:
+            sol = puma.ikine_a(T_final, config=config)
+            if sol.success:
+                q = sol.q
+                # Extraer primeros 3 ángulos
+                theta1_rad, theta2_rad, theta3_rad = q[0], q[1], q[2]
 
-    theta3_1 = atan2(sqrt(1 - D**2), D)
-    theta3_2 = atan2(-sqrt(1 - D**2), D)
+                # Convertir a grados
+                theta1_deg = math.degrees(theta1_rad)
+                theta2_deg = math.degrees(theta2_rad)
+                theta3_deg = math.degrees(theta3_rad)
 
-    theta2_1 = atan2(s, r) - atan2(d4 * sqrt(1 - D**2), a3 + d4 * D)
-    theta2_2 = atan2(s, r) - atan2(d4 * -sqrt(1 - D**2), a3 + d4 * D)
+                # Preparar respuesta
+                response = {
+                    "theta1_deg": theta1_deg,
+                    "theta2_deg": theta2_deg,
+                    "theta3_deg": theta3_deg
+                }
 
-    solutions = []
-    for theta1 in [theta1_1, theta1_2]:
-        for theta3, theta2 in [(theta3_1, theta2_1), (theta3_2, theta2_2)]:
-            T03 = A_01(theta1) * A_12(theta2, a2, d2) * A_23(theta3, a3)
-            T36 = T03.inv() * T_target
-
-            theta5 = atan2(sqrt(T36[0, 2]**2 + T36[1, 2]**2), T36[2, 2])
-            theta4 = atan2(T36[1, 2], T36[0, 2])
-            theta6 = atan2(-T36[2, 1], T36[2, 0])
-
-            solutions.append((degrees(theta1), degrees(theta2), degrees(theta3),
-                              degrees(theta4), degrees(theta5), degrees(theta6)))
-
-    return {"solutions": solutions}
-
-
-# Transformaciones homogéneas para cada articulación
-def A_01(theta1):
-    return Matrix([
-        [cos(theta1), 0, -sin(theta1), 0],
-        [sin(theta1), 0, cos(theta1), 0],
-        [0, -1, 0, 0],
-        [0, 0, 0, 1]
-    ])
-
-def A_12(theta2, a2, d2):
-    return Matrix([
-        [cos(theta2), -sin(theta2), 0, a2 * cos(theta2)],
-        [sin(theta2), cos(theta2), 0, a2 * sin(theta2)],
-        [0, 0, 1, d2],
-        [0, 0, 0, 1]
-    ])
-
-def A_23(theta3, a3):
-    return Matrix([
-        [cos(theta3), 0, sin(theta3), a3 * cos(theta3)],
-        [sin(theta3), 0, -cos(theta3), a3 * sin(theta3)],
-        [0, 1, 0, 0],
-        [0, 0, 0, 1]
-    ])
-
-
-# Endpoint para calcular la cinemática inversa
-@app.post("/inverse-kinematics/")
-async def calculate_ik(request: IKRequest):
-    try:
-        # Llamar a la función de cinemática inversa
-        result = inverse_kinematics(request.X, request.Y, request.Z, request.roll, request.pitch, request.yaw)
-        if "error" in result:
-            raise HTTPException(status_code=400, detail=result["error"])
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+                await websocket.send_text(json.dumps(response))
+            else:
+                await websocket.send_text(json.dumps({"error": "No se encontró solución"}))
+        except Exception as e:
+            await websocket.send_text(json.dumps({"error": str(e)}))
