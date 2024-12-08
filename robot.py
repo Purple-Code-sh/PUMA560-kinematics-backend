@@ -1,22 +1,16 @@
 import math
 import roboticstoolbox as rtb
 from spatialmath import SE3
+import numpy as np
 
-# Crear el modelo PUMA 560
+# Crear el modelo del PUMA 560
 puma = rtb.models.DH.Puma560()
 
-def verificar_coherencia(theta1_deg, theta2_deg, theta3_deg, config='lun'):
+def fkine_con_grados(theta1_deg, theta2_deg, theta3_deg):
     """
-    Verifica la coherencia entre:
-    - Angulos ingresados (primeros 3 DOF en grados, últimos 3 en 0).
-    - La pose resultante (fkine).
-    - La inversa (ikine_a) sobre esa pose.
-    
-    Parámetros:
-    - theta1_deg, theta2_deg, theta3_deg: Angulos en grados de las primeras 3 juntas.
-    - config: configuración para la inversa, por defecto 'lun'.
-
-    Imprime por pantalla los valores para comparación.
+    Calcula la cinemática directa del PUMA 560 tomando como entrada
+    los primeros 3 ángulos en grados. Las últimas 3 juntas se asumen en 0°.
+    Redondea todos los valores a 2 decimales.
     """
 
     # Convertir a radianes
@@ -24,7 +18,7 @@ def verificar_coherencia(theta1_deg, theta2_deg, theta3_deg, config='lun'):
     theta2_rad = math.radians(theta2_deg)
     theta3_rad = math.radians(theta3_deg)
 
-    # Asignar las últimas 3 juntas a 0 rad
+    # Asignar las últimas 3 juntas a 0 rad (0°)
     theta4_rad = 0.0
     theta5_rad = 0.0
     theta6_rad = 0.0
@@ -38,40 +32,17 @@ def verificar_coherencia(theta1_deg, theta2_deg, theta3_deg, config='lun'):
     # Extraer la posición final (x, y, z)
     x, y, z = T.t
 
-    print("=== Verificación de Coherencia ===")
-    print(f"Ángulos iniciales (grados): θ1={theta1_deg}, θ2={theta2_deg}, θ3={theta3_deg}, θ4=0, θ5=0, θ6=0")
-    print("Cinemática directa resultante:")
-    print(f"Posición final: x={x:.4f}, y={y:.4f}, z={z:.4f}")
-    print("Matriz de transformación T_final:")
-    print(T.A)
+    # Redondear la matriz T_final.A
+    T_rounded = np.round(T.A, 2)
 
-    # Aplicar inversa analítica con la configuración dada
-    sol = puma.ikine_a(T, config=config)
-
-    if sol.success:
-        q_inv = sol.q
-        # Convertir los primeros 3 ángulos inversos a grados
-        inv_theta1_deg = math.degrees(q_inv[0])
-        inv_theta2_deg = math.degrees(q_inv[1])
-        inv_theta3_deg = math.degrees(q_inv[2])
-
-        print("\nCinemática inversa sobre la pose final:")
-        print(f"Config utilizada: {config}")
-        print(f"Solución inversa (primeros 3 ángulos en grados): θ1={inv_theta1_deg:.2f}, θ2={inv_theta2_deg:.2f}, θ3={inv_theta3_deg:.2f}")
-
-        # Comparar con los originales
-        diff1 = inv_theta1_deg - theta1_deg
-        diff2 = inv_theta2_deg - theta2_deg
-        diff3 = inv_theta3_deg - theta3_deg
-
-        print("\nDiferencias respecto a los ángulos originales (en grados):")
-        print(f"Δθ1={diff1:.2f}°, Δθ2={diff2:.2f}°, Δθ3={diff3:.2f}°")
-
-    else:
-        print("\nNo se encontró solución inversa con la configuración especificada.")
+    # Imprimir resultados con 2 decimales
+    print("=== Cinemática Directa ===")
+    print(f"Ángulos ingresados (grados): θ1={theta1_deg:.2f}, θ2={theta2_deg:.2f}, θ3={theta3_deg:.2f}, θ4=0°, θ5=0°, θ6=0°")
+    print("Matriz de transformación final T_final (4x4):")
+    print(T_rounded)
+    print(f"Posición final del efector: x={x:.2f}, y={y:.2f}, z={z:.2f}")
 
 
 if __name__ == "__main__":
-    # Ejemplo: supongamos que el frontend muestra θ1=0°, θ2=-90°, θ3=90°
-    # En el frontend ves estos valores, y quieres verificar coherencia:
-    verificar_coherencia(0, -90, 90, config='lun')
+    # Ejemplo: q=[0°, -90°, 90°, 0°, 0°, 0°]
+    fkine_con_grados(15.54, 90.13, 89.95)
