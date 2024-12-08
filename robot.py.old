@@ -1,0 +1,98 @@
+import math
+import json
+
+def angle_wrap(angle):
+    """Ajusta un ángulo al rango (-pi, pi)."""
+    while angle > math.pi:
+        angle -= 2*math.pi
+    while angle <= -math.pi:
+        angle += 2*math.pi
+    return angle
+
+def inverse_kinematics_3joints_exact(px, py, pz, ARM=1, ELBOW=1, debug=False):
+    # Parámetros PUMA 560 (en mm)
+    a2 = 431.8
+    d2 = 149.09
+    a3 = -20.32  # probar con 20.32 si no hay solución
+    d4 = 433.07
+
+    if debug:
+        print("=== Inverse Kinematics Debug Info ===")
+        print(f"Input point: px={px}, py={py}, pz={pz}")
+        print(f"ARM={ARM}, ELBOW={ELBOW}")
+        print(f"Parameters: a2={a2}, d2={d2}, a3={a3}, d4={d4}")
+
+    # 1) Calcular θ1
+    theta1 = math.atan2(ARM * py, ARM * px)
+    if debug:
+        print(f"theta1 (rad)={theta1}")
+
+    # 2) Calculos auxiliares
+    r = math.sqrt(px**2 + py**2) - a2
+    s = pz - d2
+
+    if debug:
+        print(f"r={r}, s={s}")
+
+    # 3) Calculo de D
+    try:
+        D = (r**2 + s**2 - a3**2 - d4**2) / (2 * a3 * d4)
+    except ZeroDivisionError:
+        raise ValueError("División por cero en el cálculo de D. Revisa a3 y d4.")
+
+    if debug:
+        print(f"D={D}")
+
+    if abs(D) > 1:
+        raise ValueError("Posición fuera del alcance (|D| > 1) para θ3.")
+
+    # 4) θ3
+    theta3 = math.atan2(ELBOW * math.sqrt(1 - D**2), D)
+    if debug:
+        print(f"theta3 (rad)={theta3}")
+
+    # 5) θ2
+    alpha = math.atan2(s, r)
+    beta = math.atan2(d4 * math.sqrt(1 - D**2), a3 + d4 * D)
+    if debug:
+        print(f"alpha (rad)={alpha}, beta (rad)={beta}")
+
+    theta2 = alpha - ELBOW * beta
+    if debug:
+        print(f"theta2 (rad)={theta2}")
+
+    # Normalizar
+    theta1 = angle_wrap(theta1)
+    theta2 = angle_wrap(theta2)
+    theta3 = angle_wrap(theta3)
+
+    if debug:
+        print(f"Normalized angles (rad): θ1={theta1}, θ2={theta2}, θ3={theta3}")
+        print("======================================")
+
+    return theta1, theta2, theta3
+
+if __name__ == "__main__":
+    # Leer JSON
+    with open("ejemplo_input.json", "r") as f:
+        data = json.load(f)
+    
+    X = data.get("X", 300.0)
+    Y = data.get("Y", 200.0)
+    Z = data.get("Z", 400.0)
+    ARM = data.get("ARM", 1)
+    ELBOW = data.get("ELBOW", 1)
+
+    try:
+        t1_rad, t2_rad, t3_rad = inverse_kinematics_3joints_exact(X, Y, Z, ARM, ELBOW, debug=True)
+        # Convertir radianes a grados decimales para salida final
+        t1_deg = math.degrees(t1_rad)
+        t2_deg = math.degrees(t2_rad)
+        t3_deg = math.degrees(t3_rad)
+
+        print("Resultado final en grados decimales:")
+        print(f"θ1={t1_deg:.2f}°")
+        print(f"θ2={t2_deg:.2f}°")
+        print(f"θ3={t3_deg:.2f}°")
+    except ValueError as e:
+        print("Error:", e)

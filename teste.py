@@ -65,12 +65,12 @@ def round_matrix(matrix, decimals=2):
     return matrix.applyfunc(round_and_check)
 
 # Valores de prueba
-G1 = 90
-G2 = 0
+G1 = 0
+G2 = -90
 A2 = 431.80
 D2 = 149.09
 G3 = 90
-A3 = -20.32
+A3 = 20.32
 G4 = 0
 D4 = 433.07
 G5 = 0

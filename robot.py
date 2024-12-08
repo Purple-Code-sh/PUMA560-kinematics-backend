@@ -1,23 +1,21 @@
+import math
 import roboticstoolbox as rtb
-import numpy as np
 
-# Modelo del robot usando Denavit-Hartenberg (ejemplo básico)
-def create_robot():
-    # Configura aquí tu robot de 3 grados de libertad
-    return rtb.DHRobot([
-        rtb.RevoluteDH(a=1, alpha=0),  # Primer grado de libertad
-        rtb.RevoluteDH(a=1, alpha=0),  # Segundo grado de libertad
-        rtb.RevoluteDH(a=1, alpha=0),  # Tercer grado de libertad
-    ], name="My3DOFRobot")
+# Cargar el modelo PUMA 560 definido por Peter Corke
+puma = rtb.models.DH.Puma560()
 
-# Calcular ángulos para coordenadas XYZ
-def calculate_angles(robot, xyz):
-    try:
-        # Cinemática inversa para obtener ángulos
-        solution = robot.ikine_LM(np.array(xyz))
-        if solution.success:
-            return solution.q  # Devuelve los ángulos calculados
-        else:
-            raise ValueError("No se encontró solución válida para las coordenadas dadas.")
-    except Exception as e:
-        raise ValueError(f"Error en cálculo: {e}")
+# Prueba una configuración simple
+q = [0, -math.pi/2, math.pi/2, 0, 0, 0]
+
+# Cinemática directa
+T = puma.fkine(q)
+print("Pose con q=[0, -90°, 90°, 0, 0, 0]:")
+print(T)
+
+# Intentar la inversa analítica
+# Debes indicar la configuración, por ejemplo 'run' (right, up, no-flip)
+sol_a = puma.ikine_a(T, config='run')
+
+print("Solución inversa ikine_a (analítica):")
+print("q=", sol_a.q)
+print("exitflag:", sol_a.success)
