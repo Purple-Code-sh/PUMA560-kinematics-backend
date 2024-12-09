@@ -107,12 +107,12 @@ D4 = 433.07
 THETA4 = 0
 
 app = FastAPI()
+# To start the server
 # uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    # Esperar mensaje JSON con X, Y, Z, arm y elbow
     while True:
         data = await websocket.receive_text()
         req = json.loads(data)
@@ -124,30 +124,33 @@ async def websocket_endpoint(websocket: WebSocket):
         arm = req.get("arm", -1)
         elbow = req.get("elbow", -1)
 
-        # Resolver inversa analítica
         try:
+            # Calcular los ángulos
+            theta1_deg = calcular_theta1(X, Y, Z, D2, arm)
+            theta2_deg = calcular_theta2(X, Y, Z, A2, D2, D4, A3, arm, elbow)
+            theta3_deg = calcular_theta3(X, Y, Z, A2, D2, D4, A3, arm, elbow)
 
-            theta1_deg = calcular_theta1( X, Y, Z, D2, arm)
-            theta2_deg = calcular_theta2( X, Y, Z, A2, D2, D4, A3, arm, elbow)
-            theta3_deg = calcular_theta3( X, Y, Z, A2, D2, D4, A3, arm, elbow)
-
+            # Calcular las matrices
             T_0_1 = round_matrix(A_01(theta1_deg))
-            print("T_0_1 : ", T_0_1)
-
             T_0_2 = round_matrix(A_01(theta1_deg) * A_12(theta2_deg, A2, D2))
-            print("T_0_2 : ",T_0_2)
-
             T_0_3 = round_matrix(A_01(theta1_deg) * A_12(theta2_deg, A2, D2) * A_23(theta3_deg, A3))
-            print("T_0_3 : ",T_0_3)
-
             T_0_4 = round_matrix(A_01(theta1_deg) * A_12(theta2_deg, A2, D2) * A_23(theta3_deg, A3) * A_34(THETA4, D4))
-            print("T_0_4 : ",T_0_4)
+
+            # Extraer coordenadas x, y, z de cada matriz
+            coords_0_1 = [float(T_0_1[0, 3]), float(T_0_1[1, 3]), float(T_0_1[2, 3])]
+            coords_0_2 = [float(T_0_2[0, 3]), float(T_0_2[1, 3]), float(T_0_2[2, 3])]
+            coords_0_3 = [float(T_0_3[0, 3]), float(T_0_3[1, 3]), float(T_0_3[2, 3])]
+            coords_0_4 = [float(T_0_4[0, 3]), float(T_0_4[1, 3]), float(T_0_4[2, 3])]
 
             # Preparar respuesta
             response = {
                 "theta1_deg": theta1_deg,
                 "theta2_deg": theta2_deg,
-                "theta3_deg": theta3_deg
+                "theta3_deg": theta3_deg,
+                "coords_0_1": coords_0_1,
+                "coords_0_2": coords_0_2,
+                "coords_0_3": coords_0_3,
+                "coords_0_4": coords_0_4
             }
 
             await websocket.send_text(json.dumps(response))
