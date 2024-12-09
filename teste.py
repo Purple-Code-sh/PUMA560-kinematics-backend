@@ -65,12 +65,12 @@ def round_matrix(matrix, decimals=2):
     return matrix.applyfunc(round_and_check)
 
 # Valores de prueba
-G1 = 0
-G2 = -90
+G1 = 90
+G2 = 10
 A2 = 431.80
 D2 = 149.09
-G3 = 90
-A3 = 20.32
+G3 = 70
+A3 = -20.32
 G4 = 0
 D4 = 433.07
 G5 = 0
@@ -85,3 +85,9 @@ Mat_T = Mat_T1 * Mat_T2
 Mat_T_rounded = round_matrix(Mat_T)
 
 print(Mat_T_rounded)
+
+# Las coordenadas obtenidas en la cuarta columna se leen tomando en consideración
+# la regla de la mano derecha. Con el pulgar apuntando hacia arriba:
+#   Z positivo esta en la direccion que apunta el pulgar
+#   X positivo esta en la direccion que apunta el indice
+#   Y positivo esta en la direccion que apunta el dedo medio
