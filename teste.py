@@ -79,7 +79,8 @@ D6 = 56.25
 
 Mat_T1 = T1(G1, G2, A2, D2, G3, A3)
 Mat_T2 = T2(G4, D4, G5, G6, D6)
-Mat_T = Mat_T1 * Mat_T2
+#Mat_T = Mat_T1 * Mat_T2
+Mat_T = Mat_T1 * A_34(G4,D4) #imprime solo T para A_04, la cual expresa la posición del centro de la muñeca, sin tomar en cuenta las rotaciones del efector final.
 
 # Redondear la matriz final
 Mat_T_rounded = round_matrix(Mat_T)

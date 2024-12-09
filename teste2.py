@@ -58,7 +58,7 @@ def calcular_theta3(px, py, pz, a2, d2, d4, a3, ARM, ELBOW):
 
 if __name__ == "__main__":
     # Ejemplo de parámetros
-    px, py, pz =  -149.09, 903.60, 30
+    px, py, pz =  -149.09, 848.20, 20.23
     a2, d2, d4, a3 = 431.80, 149.09, 433.07, -20.32
     ARM, ELBOW = -1, -1
 
