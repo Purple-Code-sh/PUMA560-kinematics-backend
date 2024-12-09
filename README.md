@@ -100,4 +100,4 @@ This backend application provides the calculations required for inverse kinemati
 
 ## License
 
-This project is licensed under the MIT License. Feel free to use and modify it as needed.
+This project is licensed under the Mozilla Public License Version 2.0
